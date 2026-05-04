@@ -1,6 +1,6 @@
 ---
 name: file-vault-workflow
-description: Use when running the school file vault workflow: initialize or inspect a local vault/database, import and preserve raw school files, create or read previews and inspection artifacts, sort/classify material, draft reviewed processed wiki pages, generate worksheets or answer keys from confirmed wiki knowledge, and verify manifest provenance across raw, preview, processed, and generated artifacts.
+description: Use when running the school file vault workflow: initialize or inspect a local vault/database, import and preserve raw school files, create or read previews and inspection artifacts, sort/classify material, draft reviewed processed wiki pages, generate worksheets or answer keys from confirmed wiki knowledge, export generated Markdown to polished PDF when requested, and verify manifest provenance across raw, preview, processed, generated, and rendered artifacts.
 ---
 
 # File Vault Workflow
@@ -27,6 +27,7 @@ This is not a generic file manager. The useful behavior is source-traceable scho
 - Agent output is a draft until reviewed.
 - Processed Markdown is canonical knowledge only after human confirmation.
 - Generated worksheets and answer keys must cite active processed wiki page IDs.
+- Generated Markdown is the canonical generated source; PDF is a deterministic presentation artifact.
 - Do not generate practice directly from raw PDFs, images, DOCX files, or previews.
 - Keep vault paths relative inside `index/manifest.json`.
 - Do not hide provenance or confirmation steps.
@@ -216,13 +217,37 @@ Generated records must link to:
 
 Do not use `sourceRawFileIds` as generation sources.
 
-### 8. Verify Provenance
+### 8. Export PDF
+
+When the user asks for a polished or printable final result, render generated Markdown to PDF after saving the Markdown source.
+
+Preferred flow:
+
+```text
+active processed wiki
+-> generated worksheet.md / answer_key.md
+-> deterministic Markdown-to-HTML/CSS renderer
+-> worksheet.pdf / answer_key.pdf
+```
+
+Rules:
+
+- Keep Markdown as the auditable source of truth.
+- Treat PDF as a rendered artifact, not a separate knowledge source.
+- Prefer HTML/CSS to PDF via a pinned browser/renderer when available.
+- Use fixed page size, margins, fonts, and CSS for stable output.
+- Save PDFs beside their Markdown source under `generated/<level>/<subject>/<topic>/`.
+- Record PDF paths in the generated output manifest record using vault-relative paths.
+- If rendering fails, preserve the Markdown output and report the renderer limitation.
+
+### 9. Verify Provenance
 
 After wiki creation or generation, inspect:
 
 - `index/manifest.json`
 - processed Markdown frontmatter
 - generated Markdown frontmatter
+- rendered PDF artifact paths if present
 - source IDs and paths
 - active or needs-review status
 
@@ -233,6 +258,7 @@ rawFiles[]
 -> previewPages[]
 -> processedPages[] active
 -> generatedOutputs[]
+-> rendered PDF paths, optional
 ```
 
 ## Draft JSON Shapes
@@ -273,7 +299,16 @@ rawFiles[]
   "materialType": "worksheet",
   "sourceProcessedPageIds": ["processed_p1_math_coins_scope"],
   "worksheetMarkdown": "# Worksheet\n\n1. ...",
-  "answerKeyMarkdown": "# Answer Key\n\n1. ..."
+  "answerKeyMarkdown": "# Answer Key\n\n1. ...",
+  "renderedArtifacts": [
+    {
+      "format": "pdf",
+      "kind": "worksheet",
+      "path": "generated/P1/Math/coins/worksheet.pdf",
+      "sourceMarkdownPath": "generated/P1/Math/coins/worksheet.md",
+      "renderer": "html-css-pdf"
+    }
+  ]
 }
 ```
 
@@ -288,6 +323,7 @@ Before finishing any workflow task, check:
 - wiki draft includes provenance
 - confirmed wiki page is active
 - generated output uses processed wiki IDs
+- generated PDF, if present, is rendered from generated Markdown
 - manifest links are vault-relative
 - no generated output depends directly on raw files
 
