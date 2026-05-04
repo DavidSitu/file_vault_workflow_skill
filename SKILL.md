@@ -31,6 +31,7 @@ This is not a generic file manager. The useful behavior is source-traceable scho
 - Do not generate practice directly from raw PDFs, images, DOCX files, or previews.
 - Keep vault paths relative inside `index/manifest.json`.
 - Do not hide provenance or confirmation steps.
+- Do not encode raw-file processing state by moving raw originals between folders after import.
 
 ## Runtime Vault Layout
 
@@ -40,7 +41,7 @@ The vault/database is a local filesystem plus manifest:
 <user-selected-vault>/
   raw/
   previews/
-  processed/
+  processed/        # human-readable wiki Markdown
   generated/
   index/
     manifest.json
@@ -57,6 +58,25 @@ Manifest minimum shape:
   "generatedOutputs": []
 }
 ```
+
+Raw processing state belongs in the manifest, not in the raw file path. Keep the imported raw path stable and track whether the file has contributed to confirmed processed knowledge with fields such as:
+
+```json
+{
+  "id": "raw_upload-001",
+  "path": "raw/raw_upload-001/original.pdf",
+  "processingStatus": "unprocessed",
+  "processedPageIds": []
+}
+```
+
+Allowed `processingStatus` values:
+
+- `unprocessed`: imported, but no accepted processed wiki page uses it yet
+- `in_review`: draft or inspection exists, but no active processed page is confirmed
+- `processed`: one or more active processed wiki pages cite this raw file
+
+If a filesystem view is useful for humans, create derived indexes or reports under `index/`, but do not move the raw original to represent state.
 
 ## Current CLI Surface
 
@@ -106,6 +126,7 @@ Capture:
 - MIME type if available
 - SHA-256 hash if implemented
 - status
+- processing status: `unprocessed`, `in_review`, or `processed`
 - preview page IDs
 
 Never mutate the user's original source file or the stored raw copy.
@@ -160,6 +181,8 @@ Do not silently invent missing metadata. If a field is inferred, say it is infer
 
 ### 5. Draft Processed Wiki
 
+The processed layer is the wiki. A processed file must be human-readable Markdown, not opaque JSON, dumped extraction text, or machine-only metadata.
+
 Draft Markdown as reviewed knowledge, but do not make it trusted until accepted.
 
 A processed page should summarize:
@@ -176,6 +199,8 @@ Processed wiki pages live under:
 ```text
 processed/<level>/<subject>/<topic>/
 ```
+
+A processed wiki page should be readable directly in a Markdown viewer or text editor. Use frontmatter for IDs, status, metadata, and provenance, then use normal Markdown headings and prose for the actual knowledge.
 
 A confirmed page should become `active`. A non-confirmed page should remain `needs_review`.
 
@@ -226,7 +251,7 @@ Preferred flow:
 ```text
 active processed wiki
 -> generated worksheet.md / answer_key.md
--> deterministic Markdown-to-HTML/CSS renderer
+-> deterministic Markdown-to-PDF renderer
 -> worksheet.pdf / answer_key.pdf
 ```
 
@@ -234,7 +259,8 @@ Rules:
 
 - Keep Markdown as the auditable source of truth.
 - Treat PDF as a rendered artifact, not a separate knowledge source.
-- Prefer HTML/CSS to PDF via a pinned browser/renderer when available.
+- HTML may be used as a transient renderer intermediate, but do not save or require HTML files for generated questions.
+- Prefer a pinned Markdown-to-PDF path when available.
 - Use fixed page size, margins, fonts, and CSS for stable output.
 - Save PDFs beside their Markdown source under `generated/<level>/<subject>/<topic>/`.
 - Record PDF paths in the generated output manifest record using vault-relative paths.
@@ -306,7 +332,7 @@ rawFiles[]
       "kind": "worksheet",
       "path": "generated/P1/Math/coins/worksheet.pdf",
       "sourceMarkdownPath": "generated/P1/Math/coins/worksheet.md",
-      "renderer": "html-css-pdf"
+      "renderer": "markdown-pdf"
     }
   ]
 }
@@ -325,6 +351,7 @@ Before finishing any workflow task, check:
 - generated output uses processed wiki IDs
 - generated PDF, if present, is rendered from generated Markdown
 - manifest links are vault-relative
+- raw file processing status matches active processed wiki links
 - no generated output depends directly on raw files
 
 ## Failure Handling
