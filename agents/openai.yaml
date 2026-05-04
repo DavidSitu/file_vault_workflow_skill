@@ -1,0 +1,8 @@
+interface:
+  display_name: "File Vault Workflow"
+  short_description: "Reviewed raw-to-wiki-to-practice vault workflow"
+  brand_color: "#0369A1"
+  default_prompt: "Use $file-vault-workflow to run the local vault workflow from raw school files through reviewed wiki knowledge and generated practice."
+
+policy:
+  allow_implicit_invocation: false
